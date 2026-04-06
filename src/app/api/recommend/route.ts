@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  categories,
-  cocktailStats,
-  ingredientCatalog,
-} from "@/lib/cocktails";
+import { getCocktailCatalog } from "@/lib/cocktails";
 import { recommendCocktails } from "@/lib/recommender";
 
 export const runtime = "nodejs";
@@ -27,7 +23,7 @@ function normalizeMaxMissing(value: string | null, fallback: number) {
   return Math.min(Math.max(parsed, 0), 6);
 }
 
-function createResponse({
+async function createResponse({
   ingredients,
   category,
   limit,
@@ -38,7 +34,8 @@ function createResponse({
   limit: number;
   maxMissing: number;
 }) {
-  const recommendations = recommendCocktails({
+  const catalog = await getCocktailCatalog();
+  const recommendations = await recommendCocktails({
     ingredients,
     category,
     limit,
@@ -55,13 +52,13 @@ function createResponse({
     summary: {
       selectedIngredientCount: ingredients.length,
       recommendationCount: recommendations.length,
-      cocktailCount: cocktailStats.cocktailCount,
-      categoryCount: cocktailStats.categoryCount,
-      ingredientCount: cocktailStats.ingredientCount,
+      cocktailCount: catalog.cocktailStats.cocktailCount,
+      categoryCount: catalog.cocktailStats.categoryCount,
+      ingredientCount: catalog.cocktailStats.ingredientCount,
     },
     meta: {
-      categories,
-      ingredientCatalogCount: ingredientCatalog.length,
+      categories: catalog.categories,
+      ingredientCatalogCount: catalog.ingredientCatalog.length,
     },
     recommendations,
   };
@@ -80,7 +77,7 @@ export async function GET(request: NextRequest) {
   const maxMissing = normalizeMaxMissing(searchParams.get("maxMissing"), 2);
 
   return NextResponse.json(
-    createResponse({
+    await createResponse({
       ingredients,
       category,
       limit,
@@ -123,7 +120,7 @@ export async function POST(request: NextRequest) {
   const category = payload.category ?? "all";
 
   return NextResponse.json(
-    createResponse({
+    await createResponse({
       ingredients,
       category,
       limit,

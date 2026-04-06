@@ -1,6 +1,5 @@
 import {
-  cocktails,
-  getIngredientLabel,
+  getCocktailCatalog,
   normalizeIngredientName,
   type Cocktail,
 } from "@/lib/cocktails";
@@ -30,25 +29,21 @@ export type RecommendationResult = {
   exactMatch: boolean;
 };
 
-const documentFrequency = new Map<string, number>();
-
-for (const cocktail of cocktails) {
-  for (const ingredient of new Set(cocktail.normalizedIngredients)) {
-    documentFrequency.set(
-      ingredient,
-      (documentFrequency.get(ingredient) ?? 0) + 1,
-    );
-  }
-}
-
-function getIngredientWeight(normalizedIngredient: string) {
+function getIngredientWeight(
+  normalizedIngredient: string,
+  documentFrequency: Map<string, number>,
+  cocktailCount: number,
+) {
   const df = documentFrequency.get(normalizedIngredient) ?? 1;
-  return 1 + Math.log((cocktails.length + 1) / (df + 1));
+  return 1 + Math.log((cocktailCount + 1) / (df + 1));
 }
 
 function createRecommendation(
   cocktail: Cocktail,
   availableIngredients: Set<string>,
+  documentFrequency: Map<string, number>,
+  ingredientLabelByNormalized: Map<string, string>,
+  cocktailCount: number,
 ): RecommendationResult {
   const matchedNormalized = cocktail.normalizedIngredients.filter((ingredient) =>
     availableIngredients.has(ingredient),
@@ -58,11 +53,15 @@ function createRecommendation(
   );
 
   const recipeWeight = cocktail.normalizedIngredients.reduce(
-    (total, ingredient) => total + getIngredientWeight(ingredient),
+    (total, ingredient) =>
+      total +
+      getIngredientWeight(ingredient, documentFrequency, cocktailCount),
     0,
   );
   const matchedWeight = matchedNormalized.reduce(
-    (total, ingredient) => total + getIngredientWeight(ingredient),
+    (total, ingredient) =>
+      total +
+      getIngredientWeight(ingredient, documentFrequency, cocktailCount),
     0,
   );
 
@@ -94,8 +93,12 @@ function createRecommendation(
     category: cocktail.category,
     method: cocktail.method,
     ingredientDirections: cocktail.ingredients.map((ingredient) => ingredient.direction),
-    matchedIngredients: matchedNormalized.map(getIngredientLabel),
-    missingIngredients: missingNormalized.map(getIngredientLabel),
+    matchedIngredients: matchedNormalized.map(
+      (ingredient) => ingredientLabelByNormalized.get(ingredient) ?? ingredient,
+    ),
+    missingIngredients: missingNormalized.map(
+      (ingredient) => ingredientLabelByNormalized.get(ingredient) ?? ingredient,
+    ),
     matchedIngredientCount: matchedNormalized.length,
     totalIngredientCount: cocktail.ingredients.length,
     missingIngredientCount: missingNormalized.length,
@@ -107,12 +110,13 @@ function createRecommendation(
   };
 }
 
-export function recommendCocktails({
+export async function recommendCocktails({
   ingredients,
   category,
   limit = 6,
   maxMissing = 2,
 }: RecommendationInput) {
+  const catalog = await getCocktailCatalog();
   const availableIngredients = new Set(
     ingredients
       .map(normalizeIngredientName)
@@ -123,9 +127,17 @@ export function recommendCocktails({
     return [];
   }
 
-  return cocktails
+  return catalog.cocktails
     .filter((cocktail) => !category || category === "all" || cocktail.category === category)
-    .map((cocktail) => createRecommendation(cocktail, availableIngredients))
+    .map((cocktail) =>
+      createRecommendation(
+        cocktail,
+        availableIngredients,
+        catalog.documentFrequency,
+        catalog.ingredientLabelByNormalized,
+        catalog.cocktails.length,
+      ),
+    )
     .filter(
       (cocktail) =>
         cocktail.matchedIngredientCount > 0 &&

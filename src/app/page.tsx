@@ -1,15 +1,13 @@
 import { RecommendationWorkbench } from "@/components/recommendation-workbench";
 import {
-  categories,
-  cocktailStats,
   defaultSelectedIngredients,
-  ingredientCatalog,
-  popularIngredients,
+  getCocktailCatalog,
 } from "@/lib/cocktails";
 import { recommendCocktails } from "@/lib/recommender";
 
-export default function Home() {
-  const initialResults = recommendCocktails({
+export default async function Home() {
+  const catalog = await getCocktailCatalog();
+  const initialResults = await recommendCocktails({
     ingredients: defaultSelectedIngredients,
     maxMissing: 2,
     limit: 6,
@@ -50,7 +48,7 @@ export default function Home() {
                 Dataset
               </p>
               <p className="mt-4 font-display text-5xl">
-                {cocktailStats.cocktailCount}
+                {catalog.cocktailStats.cocktailCount}
               </p>
               <p className="mt-2 text-sm leading-7 text-white/75">
                 resep cocktail resmi IBA siap dianalisis oleh mesin rekomendasi.
@@ -64,7 +62,7 @@ export default function Home() {
                     Bahan unik
                   </p>
                   <p className="mt-2 font-display text-4xl text-[var(--foreground)]">
-                    {cocktailStats.ingredientCount}
+                    {catalog.cocktailStats.ingredientCount}
                   </p>
                 </div>
                 <div>
@@ -72,7 +70,7 @@ export default function Home() {
                     Kategori
                   </p>
                   <p className="mt-2 font-display text-4xl text-[var(--foreground)]">
-                    {cocktailStats.categoryCount}
+                    {catalog.cocktailStats.categoryCount}
                   </p>
                 </div>
                 <div>
@@ -80,7 +78,7 @@ export default function Home() {
                     Rata-rata bahan
                   </p>
                   <p className="mt-2 font-display text-4xl text-[var(--foreground)]">
-                    {cocktailStats.averageIngredientsPerCocktail}
+                    {catalog.cocktailStats.averageIngredientsPerCocktail}
                   </p>
                 </div>
               </div>
@@ -121,9 +119,9 @@ export default function Home() {
         </section>
 
         <RecommendationWorkbench
-          categories={categories}
-          ingredientCatalog={ingredientCatalog}
-          popularIngredients={popularIngredients}
+          categories={catalog.categories}
+          ingredientCatalog={catalog.ingredientCatalog}
+          popularIngredients={catalog.popularIngredients}
           defaultSelectedIngredients={defaultSelectedIngredients}
           initialResults={initialResults}
         />
